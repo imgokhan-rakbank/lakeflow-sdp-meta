@@ -1,0 +1,79 @@
+name: customer_profile
+silver_table: silver.customer_profile_scd2
+business_key:
+  - customer_id
+hash_columns:
+  - first_name
+  - last_name
+  - email
+  - phone
+  - address_line_1
+  - address_line_2
+  - city
+  - state
+  - postal_code
+ordering_fields:
+  - event_time
+  - source_priority
+  - source_position
+  - ingest_ts
+sources:
+  - name: customer_core
+    bronze_table: bronze.customer_core_cdc
+    source_priority: 10
+    record_source: customer_core
+    delete_semantic: entity_delete
+    operation_column: op
+    event_time_column: event_time
+    source_event_id_column: event_id
+    source_position_column: source_position
+    ingest_ts_column: ingest_ts
+    component_columns:
+      - first_name
+      - last_name
+      - email
+      - phone
+    column_mappings:
+      - source_column: customer_id
+        target_column: customer_id
+        is_business_key: true
+      - source_column: first_name
+        target_column: first_name
+      - source_column: last_name
+        target_column: last_name
+      - source_column: email
+        target_column: email
+      - source_column: phone
+        target_column: phone
+
+  - name: customer_address
+    bronze_table: bronze.customer_address_cdc
+    source_priority: 20
+    record_source: customer_address
+    delete_semantic: nullify_component
+    operation_column: op
+    event_time_column: event_time
+    source_event_id_column: event_id
+    source_position_column: source_position
+    ingest_ts_column: ingest_ts
+    component_columns:
+      - address_line_1
+      - address_line_2
+      - city
+      - state
+      - postal_code
+    column_mappings:
+      - source_column: customer_id
+        target_column: customer_id
+        is_business_key: true
+      - source_column: address_line_1
+        target_column: address_line_1
+      - source_column: address_line_2
+        target_column: address_line_2
+      - source_column: city
+        target_column: city
+      - source_column: state
+        target_column: state
+      - source_column: postal_code
+        target_column: postal_code
+
