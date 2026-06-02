@@ -64,9 +64,27 @@ class SilverSCD2Engine:
 
         return history
 
-    # Future orchestration hooks
-    def run_streaming(self) -> None:
-        raise NotImplementedError("Streaming runner is not implemented in the skeleton yet.")
+    def run_streaming(
+        self,
+        batch_source: Iterable[Iterable[CanonicalChangeRecord]],
+        existing_history: list[dict[str, Any]] | None = None,
+        run_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Process an iterable of change-record batches as a streaming micro-batch loop.
+
+        Each batch is applied on top of the accumulated history so SCD2 state is
+        maintained continuously across micro-batches.
+        """
+        run_id = run_id or "streaming_run"
+        history: list[dict[str, Any]] = list(existing_history or [])
+        for batch in batch_source:
+            history = self.build_history(
+                change_records=batch,
+                existing_history=history,
+                run_id=run_id,
+            )
+        return history
 
     def run_backfill(
         self,

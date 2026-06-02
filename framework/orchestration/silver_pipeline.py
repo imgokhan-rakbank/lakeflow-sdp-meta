@@ -54,9 +54,38 @@ class SilverEntityPipeline:
             ),
         )
 
-    # Streaming hook remains interface-only.
-    def run_streaming(self) -> None:
-        self.scd2_engine.run_streaming()
+    def run_streaming(
+        self,
+        batch_source: Iterable[dict[str, Iterable[dict[str, Any]]]],
+        existing_history: list[dict[str, Any]] | None = None,
+        run_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Process source-payload batches as a streaming micro-batch loop.
+
+        Each batch is normalized and applied on top of the accumulated SCD2 history.
+        Every micro-batch is recorded in the run registry under ``RunMode.STREAMING``.
+        """
+        history: list[dict[str, Any]] = list(existing_history or [])
+        run_id = run_id or self._make_run_id(RunMode.STREAMING)
+        for batch_index, source_payloads in enumerate(batch_source):
+            normalized = self.normalizer.normalize_all_sources(source_payloads)
+            batch_run_id = f"{run_id}_batch_{batch_index}"
+            snapshot = list(history)
+            history = self._execute_run(
+                mode=RunMode.STREAMING,
+                run_id=batch_run_id,
+                run_details={"batch_index": batch_index, "source_count": len(source_payloads)},
+                run_checkpoint={"mode": RunMode.STREAMING.value, "batch_index": batch_index},
+                processor=lambda norm=normalized, h=snapshot, rid=batch_run_id: (
+                    self.scd2_engine.build_history(
+                        change_records=norm,
+                        existing_history=h,
+                        run_id=rid,
+                    )
+                ),
+            )
+        return history
 
     def run_backfill(
         self,

@@ -15,6 +15,7 @@ class RunMode(str, Enum):
     BACKFILL = "backfill"
     KEY_REPLAY = "key_replay"
     FULL_REBUILD = "full_rebuild"
+    STREAMING = "streaming"
 
 
 class RunStatus(str, Enum):
