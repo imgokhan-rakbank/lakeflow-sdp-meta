@@ -25,15 +25,17 @@
 ## Replay/backfill design intent
 
 - `SilverEntityPipeline` exposes `run_backfill`, `run_full_rebuild`, `run_key_replay`, `run_streaming`.
-- `SilverSCD2Engine` contains matching method stubs.
-- These hooks are intentionally scaffolded so a Databricks orchestration layer can later map them to:
-  - historical window replay
-  - key-targeted replay
-  - full table rebuild
-  - incremental streaming micro-batches
+- `SilverSCD2Engine` implements in-memory replay helpers for:
+  - historical window replay (`run_backfill`)
+  - key-targeted replay (`run_key_replay`)
+  - full table rebuild (`run_full_rebuild`)
+- `orchestration/run_registry.py` provides:
+  - run ledger records (mode/status/start/end)
+  - latest checkpoint per entity
+  - run completion/failure tracking
 
 ## Current implementation boundaries
 
 - Includes in-memory reference implementation contracts.
-- Does not yet include Delta writes/checkpoints/watermarks.
+- Checkpointing exists in-memory; Delta-backed checkpoint storage is not yet implemented.
 - Does not yet include Bronze ingestion or Gold transforms.

@@ -68,14 +68,44 @@ class SilverSCD2Engine:
     def run_streaming(self) -> None:
         raise NotImplementedError("Streaming runner is not implemented in the skeleton yet.")
 
-    def run_backfill(self, start_time: Any, end_time: Any) -> None:
-        raise NotImplementedError("Backfill runner is not implemented in the skeleton yet.")
+    def run_backfill(
+        self,
+        change_records: Iterable[CanonicalChangeRecord],
+        existing_history: list[dict[str, Any]],
+        start_time: Any,
+        end_time: Any,
+        run_id: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Apply only the change records inside a backfill window on top of existing history.
+        """
+        windowed = [
+            change
+            for change in change_records
+            if self._event_time_in_window(change.event_time, start_time=start_time, end_time=end_time)
+        ]
+        return self.build_history(change_records=windowed, existing_history=existing_history, run_id=run_id)
 
-    def run_full_rebuild(self) -> None:
-        raise NotImplementedError("Full rebuild runner is not implemented in the skeleton yet.")
+    def run_full_rebuild(
+        self, change_records: Iterable[CanonicalChangeRecord], run_id: str
+    ) -> list[dict[str, Any]]:
+        """Rebuild complete history from scratch using full change stream."""
+        return self.build_history(change_records=change_records, existing_history=[], run_id=run_id)
 
-    def run_key_replay(self, keys: list[dict[str, Any]]) -> None:
-        raise NotImplementedError("Key replay runner is not implemented in the skeleton yet.")
+    def run_key_replay(
+        self,
+        change_records: Iterable[CanonicalChangeRecord],
+        existing_history: list[dict[str, Any]],
+        keys: list[dict[str, Any]],
+        run_id: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Replay selected keys by rebuilding their full timelines from supplied change records.
+        """
+        replay_key_set = {self._key_dict_to_tuple(key) for key in keys}
+        base_history = [row for row in existing_history if self._key_tuple(row) not in replay_key_set]
+        replay_changes = [change for change in change_records if self._change_key_tuple(change) in replay_key_set]
+        return self.build_history(change_records=replay_changes, existing_history=base_history, run_id=run_id)
 
     def _apply_change(
         self, current_row: dict[str, Any] | None, change: CanonicalChangeRecord
@@ -150,3 +180,24 @@ class SilverSCD2Engine:
             values.append(getattr(change, field, None))
         values.append(change.source_name)
         return tuple(values)
+
+    def _change_key_tuple(self, change: CanonicalChangeRecord) -> tuple[Any, ...]:
+        return tuple(change.business_key[k] for k in self.entity_config.business_key)
+
+    def _key_dict_to_tuple(self, key: dict[str, Any]) -> tuple[Any, ...]:
+        return tuple(key[k] for k in self.entity_config.business_key)
+
+    @staticmethod
+    def _normalize_event_time(value: Any) -> datetime:
+        if isinstance(value, datetime):
+            return value
+        text = str(value)
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        return datetime.fromisoformat(text)
+
+    def _event_time_in_window(self, value: Any, start_time: Any, end_time: Any) -> bool:
+        event_time = self._normalize_event_time(value)
+        start = self._normalize_event_time(start_time)
+        end = self._normalize_event_time(end_time)
+        return start <= event_time <= end

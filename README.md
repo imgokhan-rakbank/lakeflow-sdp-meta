@@ -9,7 +9,7 @@ Metadata-driven medallion framework skeleton for Databricks, starting with Silve
 - **Config loader** for dict/JSON/YAML inputs (easy to swap for Delta metadata tables later)
 - **Reusable source normalization** that converts source-specific CDC events into canonical Silver-stage change records
 - **Reusable entity-agnostic SCD2 engine skeleton** with deterministic ordering and configurable delete semantics
-- **Pipeline/orchestration skeleton** with hooks for:
+- **Pipeline/orchestration implementation** with run registry/checkpointing and replay modes:
   - `run_streaming()`
   - `run_backfill(...)`
   - `run_full_rebuild()`
@@ -91,9 +91,9 @@ for row in history:
 2. Plug Spark DataFrame readers/writers into normalization and SCD2 persistence steps.
 3. Add Bronze ingestion metadata + processors under `framework/bronze`.
 4. Add Gold semantic modeling under `framework/gold`.
-5. Add orchestration policies (checkpointing, run registry, replay policies, data quality gates).
+5. Add Delta-backed run registry/checkpoint persistence and orchestration policies.
 
 ## Notes
 
 - Current implementation is intentionally practical and readable.
-- Replay/backfill orchestration methods are scaffolded for future completion.
+- Replay/backfill modes are implemented in-memory and ready for Databricks storage/runtime integration.

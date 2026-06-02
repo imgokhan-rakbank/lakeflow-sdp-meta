@@ -71,8 +71,37 @@ def run_customer_profile_example() -> list[dict]:
     return pipeline.run_once(source_payloads=_sample_payloads(), run_id="customer_profile_example_run")
 
 
+def run_customer_profile_replay_example() -> dict:
+    config_path = Path(__file__).with_name("config.yaml")
+    entity_config = load_entity_config_from_path(config_path)
+    pipeline = SilverEntityPipeline(entity_config)
+    source_payloads = _sample_payloads()
+
+    full_history = pipeline.run_full_rebuild(source_payloads=source_payloads, run_id="customer_profile_full_rebuild")
+    backfill_history = pipeline.run_backfill(
+        source_payloads=source_payloads,
+        existing_history=[],
+        start_time="2026-01-01T10:05:00Z",
+        end_time="2026-01-01T10:20:00Z",
+        run_id="customer_profile_backfill",
+    )
+    key_replay_history = pipeline.run_key_replay(
+        source_payloads=source_payloads,
+        existing_history=full_history,
+        keys=[{"customer_id": "C001"}],
+        run_id="customer_profile_key_replay",
+    )
+    return {
+        "full_rebuild_rows": len(full_history),
+        "backfill_rows": len(backfill_history),
+        "key_replay_rows": len(key_replay_history),
+        "latest_checkpoint": pipeline.get_latest_checkpoint(),
+        "run_history_count": len(pipeline.get_run_history()),
+    }
+
+
 if __name__ == "__main__":
     rows = run_customer_profile_example()
     for row in rows:
         print(row)
-
+    print(run_customer_profile_replay_example())
