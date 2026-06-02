@@ -92,8 +92,11 @@ class SourceNormalizer:
         payload: dict[str, Any] = {}
         key: dict[str, Any] = {}
         for mapping in source.column_mappings:
+            has_input = mapping.source_column in record
+            has_default = mapping.default_value is not None
             value = record.get(mapping.source_column, mapping.default_value)
-            payload[mapping.target_column] = value
+            if has_input or has_default:
+                payload[mapping.target_column] = value
             if mapping.is_business_key or mapping.target_column in self.entity_config.business_key:
                 key[mapping.target_column] = value
         missing_keys = [k for k in self.entity_config.business_key if k not in key]
